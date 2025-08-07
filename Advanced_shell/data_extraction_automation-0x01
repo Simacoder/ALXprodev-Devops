@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pokémon Data Extraction Script
-# Extracts name, height, weight, and type using jq and sed
+# Extracts name, height, weight, and type using jq, awk, and sed
 # Author: Simanga Mchunu
 # File: data_extraction_automation-0x01
 
@@ -14,7 +14,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check if JSON file exists
+# Function to check if JSON file exists
 check_json_file() {
     if [ ! -f "$JSON_FILE" ]; then
         echo -e "${RED}Error: $JSON_FILE not found!${NC}" >&2
@@ -31,21 +31,25 @@ validate_json() {
     fi
 }
 
-# Extract data using jq
+# Extract data using jq and process with awk/sed
 extract_name() {
-    jq -r '.name' "$JSON_FILE" 2>/dev/null | sed 's/.*/\L&/; s/\b./\u&/'
+    jq -r '.name' "$JSON_FILE" 2>/dev/null | 
+    sed 's/^./\u&/'  # Uses sed to capitalize first letter
 }
 
 extract_height() {
-    jq -r '.height/10 | tostring | sub("\\.?0+$"; "")' "$JSON_FILE" 2>/dev/null
+    jq -r '.height/10' "$JSON_FILE" 2>/dev/null | 
+    awk '{printf "%.1f", $0}'  # Uses awk for decimal formatting
 }
 
 extract_weight() {
-    jq -r '.weight/10 | floor | tostring' "$JSON_FILE" 2>/dev/null
+    jq -r '.weight/10' "$JSON_FILE" 2>/dev/null | 
+    sed 's/\..*//'  # Uses sed to remove decimal portion
 }
 
 extract_type() {
-    jq -r '.types[0].type.name | ascii_upcase | sub("^(.).*"; "\\1") + sub("^."; "")' "$JSON_FILE" 2>/dev/null
+    jq -r '.types[0].type.name' "$JSON_FILE" 2>/dev/null | 
+    awk '{print toupper(substr($0,1,1)) substr($0,2)}'  # Uses awk for capitalization
 }
 
 # Format output as required
