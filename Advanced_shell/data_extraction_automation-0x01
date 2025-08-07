@@ -1,6 +1,7 @@
 #!/bin/bash
 # Pokémon Data Formatter
 # Output format: "Pikachu is of type Electric, weighs 6kg, and is 0.4m tall."
+# "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
 
 JSON_FILE="data.json"
 
@@ -14,13 +15,13 @@ fi
 formatted_output() {
     # Process name with sed (capitalize first letter)
     local name=$(jq -r '.name' "$JSON_FILE" | sed 's/^./\u&/')
-    
+
     # Process height with awk (1 decimal place)
     local height=$(jq -r '.height/10' "$JSON_FILE" | awk '{printf "%.1f", $0}')
-    
+
     # Process weight with awk (whole number)
     local weight=$(jq -r '.weight/10' "$JSON_FILE" | awk '{printf "%d", $0}')
-    
+
     # Process type with sed (capitalize first letter)
     local type=$(jq -r '.types[0].type.name' "$JSON_FILE" | sed 's/^./\u&/')
 
