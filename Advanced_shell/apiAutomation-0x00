@@ -2,12 +2,12 @@
 
 # API Request Automation Script
 # Fetches Pokémon data from the Pokémon API and saves to JSON file
-# Author: ALXprodev-Devops
+# Author: Simanga Mchunu
 # File: apiAutomation-0x00
 
 # Configuration
 POKEMON_NAME="pikachu"
-API_BASE_URL="https://pokeapi.co/api/v2/pokemon"
+API_BASE_URL="https://pokeapi.co/api/v2/pokemon/"
 OUTPUT_FILE="data.json"
 ERROR_FILE="errors.txt"
 
@@ -40,7 +40,7 @@ log_info() {
 # Main function to fetch Pokémon data
 fetch_pokemon_data() {
     local pokemon="$1"
-    local url="${API_BASE_URL}/${pokemon}"
+    local url="${API_BASE_URL}${pokemon}"
     
     log_info "Fetching data for Pokémon: $pokemon"
     log_info "API URL: $url"
