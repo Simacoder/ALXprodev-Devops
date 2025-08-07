@@ -1,29 +1,37 @@
 #!/bin/bash
-# Pokémon Data Extraction Script
-# Uses jq, awk, and sed to format output exactly as:
-# "Pikachu is of type Electric, weighs 6kg, and is 0.4m tall."
-# Author: Simanga Mchunu
-# File: parse_pikachu
+# Pokémon Data Formatter
+# Output format: "Pikachu is of type Electric, weighs 6kg, and is 0.4m tall."
 
 JSON_FILE="data.json"
 
-# Validate JSON file exists and is valid
-if ! jq empty "$JSON_FILE" &>/dev/null; then
-    echo "Error: Invalid or missing JSON file" >&2
+# Validate JSON
+if ! jq -e '.' "$JSON_FILE" >/dev/null 2>&1; then
+    echo "Error: Invalid JSON data" >&2
     exit 1
 fi
 
-# Extract and format data using only jq, awk, and sed
-name=$(jq -r '.name' "$JSON_FILE" | sed 's/^./\u&/')
-height=$(jq -r '.height/10' "$JSON_FILE" | awk '{printf "%.1f", $0}')
-weight=$(jq -r '.weight/10' "$JSON_FILE" | awk '{printf "%.0f", $0}')
-type=$(jq -r '.types[0].type.name' "$JSON_FILE" | sed 's/^./\u&/')
+# Extract and format data
+formatted_output() {
+    # Process name with sed (capitalize first letter)
+    local name=$(jq -r '.name' "$JSON_FILE" | sed 's/^./\u&/')
+    
+    # Process height with awk (1 decimal place)
+    local height=$(jq -r '.height/10' "$JSON_FILE" | awk '{printf "%.1f", $0}')
+    
+    # Process weight with awk (whole number)
+    local weight=$(jq -r '.weight/10' "$JSON_FILE" | awk '{printf "%d", $0}')
+    
+    # Process type with sed (capitalize first letter)
+    local type=$(jq -r '.types[0].type.name' "$JSON_FILE" | sed 's/^./\u&/')
 
-# Verify all data was extracted successfully
-if [[ -z "$name" || -z "$height" || -z "$weight" || -z "$type" ]]; then
-    echo "Error: Failed to extract complete Pokémon data" >&2
-    exit 1
-fi
+    # Verify complete data
+    if [[ -z "$name" || -z "$height" || -z "$weight" || -z "$type" ]]; then
+        echo "Error: Incomplete Pokémon data" >&2
+        exit 1
+    fi
 
-# Produce the exact required output format
-echo "${name} is of type ${type}, weighs ${weight}kg, and is ${height}m tall."
+    # Generate exact required output
+    echo "${name} is of type ${type}, weighs ${weight}kg, and is ${height}m tall."
+}
+
+formatted_output
