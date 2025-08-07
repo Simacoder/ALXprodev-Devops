@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pokémon Data Extraction Script
-# Extracts name, height, weight, and type using Python's JSON module
+# Extracts name, height, weight, and type using jq and sed
 # Author: Simanga Mchunu
 # File: data_extraction_automation-0x01
 
@@ -14,7 +14,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Function to check if JSON file exists
+# Check if JSON file exists
 check_json_file() {
     if [ ! -f "$JSON_FILE" ]; then
         echo -e "${RED}Error: $JSON_FILE not found!${NC}" >&2
@@ -23,140 +23,57 @@ check_json_file() {
     fi
 }
 
-# Enhanced JSON validation with error message
+# Validate JSON using jq
 validate_json() {
-    if ! python3 -c "import json, sys; json.load(open('$JSON_FILE'))" 2>err.log; then
+    if ! jq empty "$JSON_FILE" &>/dev/null; then
         echo -e "${RED}Error: Invalid JSON format in $JSON_FILE${NC}" >&2
-        echo -e "${YELLOW}Details:$(cat err.log)${NC}" >&2
-        rm -f err.log
         exit 1
     fi
-    rm -f err.log
 }
 
-# More robust extraction functions with error handling
+# Extract data using jq
 extract_name() {
-    python3 -c "
-import json, sys
-try:
-    data = json.load(open('$JSON_FILE'))
-    print(data.get('name', ''))
-except Exception as e:
-    sys.stderr.write(f'Name extraction error: {str(e)}\n')
-    sys.exit(1)
-" 2>/dev/null
+    jq -r '.name' "$JSON_FILE" 2>/dev/null | sed 's/.*/\L&/; s/\b./\u&/'
 }
 
 extract_height() {
-    python3 -c "
-import json, sys
-try:
-    data = json.load(open('$JSON_FILE'))
-    print('%.1f' % (data.get('height', 0)/10))
-except Exception as e:
-    sys.stderr.write(f'Height extraction error: {str(e)}\n')
-    sys.exit(1)
-" 2>/dev/null
+    jq -r '.height/10 | tostring | sub("\\.?0+$"; "")' "$JSON_FILE" 2>/dev/null
 }
 
 extract_weight() {
-    python3 -c "
-import json, sys
-try:
-    data = json.load(open('$JSON_FILE'))
-    print('%.0f' % (data.get('weight', 0)/10))
-except Exception as e:
-    sys.stderr.write(f'Weight extraction error: {str(e)}\n')
-    sys.exit(1)
-" 2>/dev/null
+    jq -r '.weight/10 | floor | tostring' "$JSON_FILE" 2>/dev/null
 }
 
 extract_type() {
-    python3 -c "
-import json, sys
-try:
-    data = json.load(open('$JSON_FILE'))
-    types = data.get('types', [{}])
-    if types:
-        type_name = types[0].get('type', {}).get('name', '')
-        print(type_name.title())
-    else:
-        print('Unknown')
-except Exception as e:
-    sys.stderr.write(f'Type extraction error: {str(e)}\n')
-    sys.exit(1)
-" 2>/dev/null
+    jq -r '.types[0].type.name | ascii_upcase | sub("^(.).*"; "\\1") + sub("^."; "")' "$JSON_FILE" 2>/dev/null
 }
 
-# Function to format the final output
+# Format output as required
 format_output() {
     local name="$1"
     local height="$2"
     local weight="$3"
     local type="$4"
-    
-    # Capitalize the first letter of the name
-    local formatted_name=$(echo "$name" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
-    
-    # Format the final sentence
-    echo "${formatted_name} is of type ${type}, weighs ${weight}kg, and is ${height}m tall."
+
+    echo "${name} is of type ${type}, weighs ${weight}kg, and is ${height}m tall."
 }
 
-# Function to extract all data and format output
-extract_and_format() {
-    # Extract individual components
+# Main function
+main() {
+    check_json_file
+    validate_json
+
     local pokemon_name=$(extract_name)
     local pokemon_height=$(extract_height)
     local pokemon_weight=$(extract_weight)
     local pokemon_type=$(extract_type)
-    
-    # Validate extracted data
-    if [ -z "$pokemon_name" ]; then
-        echo -e "${RED}Error: Failed to extract Pokémon name${NC}" >&2
+
+    if [[ -z "$pokemon_name" || -z "$pokemon_height" || -z "$pokemon_weight" || -z "$pokemon_type" ]]; then
+        echo -e "${RED}Error: Failed to extract Pokémon data${NC}" >&2
         exit 1
     fi
-    if [ -z "$pokemon_height" ]; then
-        echo -e "${RED}Error: Failed to extract Pokémon height${NC}" >&2
-        exit 1
-    fi
-    if [ -z "$pokemon_weight" ]; then
-        echo -e "${RED}Error: Failed to extract Pokémon weight${NC}" >&2
-        exit 1
-    fi
-    if [ -z "$pokemon_type" ]; then
-        echo -e "${RED}Error: Failed to extract Pokémon type${NC}" >&2
-        exit 1
-    fi
-    
-    # Format and display the output
+
     format_output "$pokemon_name" "$pokemon_height" "$pokemon_weight" "$pokemon_type"
 }
 
-# Main function with better error reporting
-main() {
-    check_json_file
-    validate_json
-    
-    # Try to extract and display data
-    if ! extract_and_format; then
-        echo -e "${RED}Error: Failed to process Pokémon data${NC}" >&2
-        echo -e "${YELLOW}Please check that your JSON file contains proper Pokémon data.${NC}" >&2
-        echo "Expected format:"
-        echo "{
-  \"name\": \"pokemon-name\",
-  \"height\": [number],
-  \"weight\": [number],
-  \"types\": [
-    {
-      \"type\": {
-        \"name\": \"type-name\"
-      }
-    }
-  ]
-}"
-        exit 1
-    fi
-}
-
-# Execute main function
 main
