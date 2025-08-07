@@ -1,0 +1,2 @@
+[2025-08-07 18:49:46] ERROR: Invalid JSON response received from API
+[2025-08-07 18:49:46] ERROR: Script failed. Check errors.txt for details.

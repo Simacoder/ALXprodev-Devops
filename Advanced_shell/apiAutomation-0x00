@@ -83,9 +83,10 @@ fetch_pokemon_data() {
         return 1
     fi
     
-    # Validate JSON response
-    if ! echo "$api_response" | jq empty 2>/dev/null; then
+    # Validate JSON response (basic check without jq dependency)
+    if [[ ! "$api_response" =~ ^\{.*\}$ ]] || [ ${#api_response} -lt 100 ]; then
         log_error "Invalid JSON response received from API"
+        log_error "Response: ${api_response:0:200}..."
         return 1
     fi
     
@@ -95,16 +96,25 @@ fetch_pokemon_data() {
     if [ $? -eq 0 ]; then
         log_success "Data successfully saved to $OUTPUT_FILE"
         
-        # Display basic info about the saved data
-        local pokemon_name=$(echo "$api_response" | jq -r '.name' 2>/dev/null)
-        local pokemon_id=$(echo "$api_response" | jq -r '.id' 2>/dev/null)
-        local pokemon_height=$(echo "$api_response" | jq -r '.height' 2>/dev/null)
-        local pokemon_weight=$(echo "$api_response" | jq -r '.weight' 2>/dev/null)
-        
-        log_info "Pokémon Name: $pokemon_name"
-        log_info "Pokémon ID: $pokemon_id"
-        log_info "Height: $pokemon_height decimetres"
-        log_info "Weight: $pokemon_weight hectograms"
+        # Display basic info about the saved data (basic parsing without jq)
+        if command -v jq &> /dev/null || [ -f "./jq.exe" ] || [ -f "./jq" ]; then
+            # Use jq if available
+            local jq_cmd="jq"
+            [ -f "./jq.exe" ] && jq_cmd="./jq.exe"
+            [ -f "./jq" ] && jq_cmd="./jq"
+            
+            local pokemon_name=$(echo "$api_response" | $jq_cmd -r '.name' 2>/dev/null)
+            local pokemon_id=$(echo "$api_response" | $jq_cmd -r '.id' 2>/dev/null)
+            local pokemon_height=$(echo "$api_response" | $jq_cmd -r '.height' 2>/dev/null)
+            local pokemon_weight=$(echo "$api_response" | $jq_cmd -r '.weight' 2>/dev/null)
+            
+            log_info "Pokémon Name: $pokemon_name"
+            log_info "Pokémon ID: $pokemon_id"
+            log_info "Height: $pokemon_height decimetres"
+            log_info "Weight: $pokemon_weight hectograms"
+        else
+            log_info "Basic validation: JSON response received"
+        fi
         log_info "File size: $(wc -c < "$OUTPUT_FILE") bytes"
         
         return 0
@@ -126,12 +136,13 @@ check_prerequisites() {
     fi
     
     # Check if jq is available (optional, for JSON validation)
-    if ! command -v jq &> /dev/null; then
-        log_info "jq is not installed. JSON validation will be skipped."
+    if ! command -v jq &> /dev/null && ! [ -f "./jq.exe" ] && ! [ -f "./jq" ]; then
+        log_info "jq is not installed. JSON validation will be basic."
         log_info "To install jq:"
         echo "  Ubuntu/Debian: sudo apt-get install jq"
         echo "  CentOS/RHEL: sudo yum install jq"
         echo "  macOS: brew install jq"
+        echo "  Windows: curl -L https://github.com/stedolan/jq/releases/latest/download/jq-win64.exe -o jq.exe"
     fi
     
     return 0
